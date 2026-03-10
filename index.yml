@@ -1,0 +1,233 @@
+app:
+  name: "M's Lifestyle"
+  description: "Gamified life OS with iOS 26 cyber-glass UI, Supabase backend, and XP-based progression."
+  stack:
+    frontend:
+      framework: "Next.js App Router"
+      language: "TypeScript"
+      styling: "Tailwind CSS"
+      animation: "Framer Motion"
+      icons: "Lucide"
+    backend:
+      service: "Supabase"
+      database: "PostgreSQL"
+      auth: "Supabase Auth"
+      storage: "Supabase Storage"
+    state:
+      server_state: "TanStack Query"
+      ui_state: "React Context / Zustand (TBD)"
+
+routing:
+  public:
+    - path: "/"
+      name: "Landing / Redirect"
+      description: "Marketing or redirect to /command-center when authenticated."
+    - path: "/auth"
+      name: "Auth"
+      description: "Sign-in / sign-up via Supabase."
+  authenticated:
+    - path: "/command-center"
+      name: "Executive Dashboard"
+      description: "Neural Stat Ring, Live XP Feed, Focus widgets."
+    - path: "/matrix"
+      name: "Task & Habit Matrix"
+      description: "Tasks, habits, drag-to-complete, habit heatmap."
+    - path: "/labs"
+      name: "Health & Focus Labs"
+      description: "Bio-Sync sliders and Deep Work Timer."
+    - path: "/arena"
+      name: "Arena"
+      description: "Global leaderboard and Achievement Vault."
+    - path: "/premium"
+      name: "Infinity Tier"
+      description: "Premium upsell and checkout."
+    - path: "/settings"
+      name: "Settings & Customization"
+      description: "Theme engine, profile, export."
+
+api:
+  base_path: "/api/v1"
+  endpoints:
+    - method: "GET"
+      path: "/user/stats"
+      description: "Fetch user profile, XP, level, rank, and recent activity."
+      returns:
+        - "profile (rankTitle, level, totalXP, energyPoints, streakCount, isPremium)"
+        - "progress (xpToNext, completionToday)"
+        - "recentCompletions (for Live XP Feed)"
+    - method: "POST"
+      path: "/tasks/complete"
+      description: "Complete a task, award XP, compute level-up and rewards."
+      body:
+        - "taskId: string"
+        - "meta?: object"
+      returns:
+        - "updatedStats"
+        - "leveledUp: boolean"
+        - "unlockedThemes"
+        - "unlockedAchievements"
+    - method: "GET"
+      path: "/tasks"
+      description: "List tasks and habits for current user with filters."
+    - method: "POST"
+      path: "/tasks"
+      description: "Create or update a task/habit."
+    - method: "GET"
+      path: "/leaderboard"
+      description: "Top users by total XP plus current user position."
+    - method: "GET"
+      path: "/user/achievements"
+      description: "Unlocked and lockable achievements for the vault."
+    - method: "GET"
+      path: "/user/export"
+      description: "Export user journey data as JSON."
+  external_hooks:
+    - name: "AI Coaching"
+      status: "planned"
+      description: "Future hook to OpenAI/Anthropic for personalized guidance."
+
+database:
+  service: "Supabase Postgres"
+  enums:
+    difficulty:
+      - "easy"
+      - "medium"
+      - "hard"
+      - "legendary"
+    category:
+      - "physical"
+      - "mental"
+      - "financial"
+      - "social"
+  tables:
+    profiles:
+      primary_key: "id (uuid, references auth.users)"
+      columns:
+        - "email: text"
+        - "auth_provider: text"
+        - "display_name: text"
+        - "avatar_url: text"
+        - "rank_title: text"
+        - "total_xp: int"
+        - "level: int"
+        - "energy_points: int"
+        - "streak_count: int"
+        - "is_premium: bool"
+        - "created_at: timestamptz"
+        - "updated_at: timestamptz"
+      rls:
+        - "users can select/update their own row"
+        - "admins can select all"
+    tasks:
+      primary_key: "id (uuid)"
+      columns:
+        - "user_id: uuid (fk profiles.id)"
+        - "title: text"
+        - "difficulty: difficulty"
+        - "recurrence: text or JSON (none/daily/weekly/custom)"
+        - "category: category"
+        - "xp_yield: int"
+        - "is_habit: bool"
+        - "is_archived: bool"
+        - "created_at: timestamptz"
+        - "updated_at: timestamptz"
+      rls:
+        - "users can CRUD rows where user_id = auth.uid()"
+    task_completions:
+      primary_key: "id (uuid)"
+      columns:
+        - "task_id: uuid (fk tasks.id)"
+        - "user_id: uuid (fk profiles.id)"
+        - "completed_at: timestamptz"
+        - "xp_awarded: int"
+        - "meta: jsonb"
+      rls:
+        - "users can read their own completions"
+    achievements:
+      primary_key: "id (uuid)"
+      columns:
+        - "code: text unique"
+        - "name: text"
+        - "description: text"
+        - "icon_key: text"
+        - "xp_bonus: int"
+        - "unlock_condition: jsonb"
+    user_achievements:
+      primary_key: "id (uuid)"
+      columns:
+        - "user_id: uuid (fk profiles.id)"
+        - "achievement_id: uuid (fk achievements.id)"
+        - "unlocked_at: timestamptz"
+        - "claimed: bool"
+      rls:
+        - "users can read their own rows"
+    themes:
+      primary_key: "id (uuid)"
+      columns:
+        - "code: text unique"
+        - "name: text"
+        - "is_premium_only: bool"
+        - "config: jsonb"
+    user_themes:
+      primary_key: "id (uuid)"
+      columns:
+        - "user_id: uuid (fk profiles.id)"
+        - "theme_id: uuid (fk themes.id)"
+        - "unlocked_at: timestamptz"
+        - "is_active: bool"
+      rls:
+        - "users can CRUD rows where user_id = auth.uid()"
+
+gamification:
+  xp_formula: "xp_required_for_level = level^2 * 100"
+  ranks:
+    - name: "Beginner"
+      levels: "1–4"
+    - name: "Pro"
+      levels: "5–9"
+    - name: "Master"
+      levels: "10–19"
+    - name: "Legend"
+      levels: "20–34"
+    - name: "God"
+      levels: "35–49"
+    - name: "Mythic"
+      levels: "50+"
+  difficulty_multipliers:
+    easy: 1.0
+    medium: 1.5
+    hard: 2.0
+    legendary: 3.0
+  premium_effects:
+    xp_multiplier: 2.0
+    perks:
+      - "Liquid Gold theme"
+      - "Unlimited habits"
+      - "Neural AI Insights (future)"
+
+ui_system:
+  design_language: "iOS 26 – Tactile Digitalism / Cyber-Glass"
+  base_colors:
+    background: "#050505 # (Deep Obsidian)"
+    accents:
+      - "#A855F7 # (Electric Amethyst)"
+      - "#22D3EE # (Neural Cyan)"
+  components:
+    - "GlassPanel"
+    - "GlassButton"
+    - "NeuralStatRing"
+    - "XPFeedTicker"
+    - "DifficultyBadge"
+    - "RankChip"
+    - "LevelUpModal"
+    - "NeuralCoreLoader"
+  themes:
+    - code: "neon"
+      description: "High-contrast neon accents."
+    - code: "deep_purple"
+      description: "Moody purple cyber-glass."
+    - code: "cobalt"
+      description: "Cool blue, focused ambiance."
+    - code: "liquid_gold"
+      description: "Premium Infinity Tier theme."
+
